@@ -42,7 +42,7 @@ The generation of documents is being processed before the run, so it will not ov
 | `--ca-file` | Path to Certificate file ||
 | `--username` | HTTP authentication Username ||
 | `--password` | HTTP authentication Password ||
-
+| `--csv` | Print output in CSV format. Must be set to 'True' or 'False' |False|
 
 
 
