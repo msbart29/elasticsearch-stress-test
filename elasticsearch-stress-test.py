@@ -22,7 +22,7 @@ from random import randint, choice
 import time
 
 # For misc
-import sys
+import sys, os
 
 # For json operations
 import json
@@ -353,6 +353,7 @@ def main():
     auth = None 
     context = None
 
+    global CSV
     # Set the timestamp
     STARTED_TIMESTAMP = int(time.time())
 
@@ -382,15 +383,38 @@ def main():
             print(e)
             sys.exit(1)
 
+	try:
+            cluster_info = es.nodes.info(metric='process')
+	    print "###############"
+	    print "Kernel : " + os.uname()[2]
+	    print "Cluster Name : "+cluster_info["cluster_name"]
+	    for cluster in cluster_info['nodes']:
+		print "	Node ID: " + cluster
+		print "	Node IP: " +cluster_info['nodes'][cluster]['ip']
+		print "	Node Version: " +cluster_info['nodes'][cluster]['version']
+
+            print "###############"
+	except Exception as e:
+            print("Could not get elasticsearch informations!")
+            print(e)
+            sys.exit(1)
+	
+	
         # Generate docs
         documents_templates = generate_documents()
         fill_documents(documents_templates)
 
-        print("Done!")
-        print("Creating indices.. ")
+        print("Creating indices...")
 
         indices = generate_indices(es)
         all_indices.extend(indices)
+
+	# Chech the indices status
+	indices_health=es.cat.indices(health='yellow,red')
+	if len(indices_health)>0:
+		for index in indices_health:
+			if index['health'] != 'green':
+				print "WARNING : Index " + index['index'] + " is " + index['health']
 
         try:
             #wait for cluster to be green if nothing else is set
@@ -424,7 +448,7 @@ def main():
     stats_thread.start()
 
     if CSV == True :
-        print "time,Successful bulks,Failed bulks,rate"
+        print "time(sec),Successful bulks,Failed bulks,rate(kbps)"
     for c in clients:
        while c.is_alive():
             try:
@@ -452,6 +476,11 @@ def main():
                 cleanup_indices(es, all_indices)
     if CSV != True:
     	print("\nTest is done! Final results:")
+    else :
+	print_stats(STARTED_TIMESTAMP)
+    
+    CSV = False
+    print ""
     print_stats(STARTED_TIMESTAMP)
 
     # Cleanup, unless we are told not to
