@@ -68,6 +68,8 @@ parser.add_argument("--no-verify", default=False, dest="no_verify", action="stor
 parser.add_argument("--username", dest="auth_username", default="", help="HTTP authentication Username")
 parser.add_argument("--password", dest="auth_password", default="", help="HTTP authentication Password")
 
+parser.add_argument("--csv", dest="csv", type=bool, default=False, choices=[True, False], help="Print output in CSV format")
+
 # Parse the arguments
 args = parser.parse_args()
 
@@ -88,6 +90,7 @@ CA_FILE = args.cafile
 VERIFY_CERTS =  not args.no_verify
 AUTH_USERNAME = args.auth_username
 AUTH_PASSWORD = args.auth_password
+CSV=args.csv
 
 # timestamp placeholder
 STARTED_TIMESTAMP = 0
@@ -270,7 +273,6 @@ def generate_indices(es):
     for _ in range(NUMBER_OF_INDICES):
         # Generate the index name
         temp_index = generate_random_string(16)
-
         # Push it to the list
         temp_indices.append(temp_index)
 
@@ -278,7 +280,7 @@ def generate_indices(es):
             # And create it in ES with the shard count and replicas
             es.indices.create(index=temp_index, body={"settings": {"number_of_shards": NUMBER_OF_SHARDS,
                                                                    "number_of_replicas": NUMBER_OF_REPLICAS}})
-
+            #print es.cat.indices(v="true")
         except Exception as e:
             print("Could not create index. Is your cluster ok?")
             print(e)
@@ -313,11 +315,17 @@ def print_stats(STARTED_TIMESTAMP):
         mbs = size_mb / float(elapsed_time)
 
     # Print stats to the user
-    print("Elapsed time: {0} seconds".format(elapsed_time))
-    print("Successful bulks: {0} ({1} documents)".format(success_bulks, (success_bulks * BULK_SIZE)))
-    print("Failed bulks: {0} ({1} documents)".format(failed_bulks, (failed_bulks * BULK_SIZE)))
-    print("Indexed approximately {0} MB which is {1:.2f} MB/s".format(size_mb, mbs))
-    print("")
+    if CSV == True :
+	print "{0},".format(elapsed_time),
+	print "{0},".format(success_bulks, (success_bulks * BULK_SIZE)),
+	print "{0},".format(failed_bulks, (failed_bulks * BULK_SIZE)),
+	print "{0}".format(size_mb, mbs)
+    else :
+        print("Elapsed time: {0} seconds".format(elapsed_time))
+        print("Successful bulks: {0} ({1} documents)".format(success_bulks, (success_bulks * BULK_SIZE)))
+        print("Failed bulks: {0} ({1} documents)".format(failed_bulks, (failed_bulks * BULK_SIZE)))
+        print("Indexed approximately {0} MB which is {1:.2f} MB/s".format(size_mb, mbs))
+        print("")
 
 
 def print_stats_worker(STARTED_TIMESTAMP):
@@ -388,6 +396,7 @@ def main():
             #wait for cluster to be green if nothing else is set
             if WAIT_FOR_GREEN:
                 es.cluster.health(wait_for_status='green', master_timeout='600s', timeout='600s')
+                print "Cluster seems green, continue ..."
         except Exception as e:
             print("Cluster timeout....")
             print("Cleaning up created indices.. "),
@@ -414,6 +423,8 @@ def main():
     stats_thread.daemon = True
     stats_thread.start()
 
+    if CSV == True :
+        print "time,Successful bulks,Failed bulks,rate"
     for c in clients:
        while c.is_alive():
             try:
@@ -425,6 +436,7 @@ def main():
                 
                 # set loop flag true to get into loop
                 flag = True
+
                 while flag:
                     #sleep 2 secs that we don't loop to often
                     sleep(2)
@@ -438,8 +450,8 @@ def main():
                             
                 print("Cleaning up created indices.. "),
                 cleanup_indices(es, all_indices)
-
-    print("\nTest is done! Final results:")
+    if CSV != True:
+    	print("\nTest is done! Final results:")
     print_stats(STARTED_TIMESTAMP)
 
     # Cleanup, unless we are told not to
