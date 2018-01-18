@@ -57,6 +57,9 @@ Run the test on ES cluster 1.2.3.4, with 10 indices, 10 random documents with up
  python elasticsearch-stress-test.py --es_address 1.2.3.4 --indices 10 --documents 10 --clients 1 --seconds 300 --number-of-shards 1 --number-of-replicas 0 --bulk-size 5000 --max-fields-per-document 10 --max-size-per-field 50 --no-cleanup --stats-frequency 15
 ```
 
+Run the test for CSV output
+```bash
+python elasticsearch-stress-test.py  --es_address 1.2.3.4 1.2.3.5 --indices 4 --documents 5 --seconds 120 --not-green --clients 5 --csv True
 Run the test with ssl
 ```bash
  python elasticsearch-stress-test.py --es_address https://1.2.3.4 --indices 5 --documents 5 --clients 1 --ca-file /path/ca.pem
